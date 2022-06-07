@@ -13,7 +13,7 @@
     Eitan:
         -Median
         -S Moving Average 
-        -SAA 
+        -ETS
 
     Makoto 
         -Seasonal Median / Feature Median

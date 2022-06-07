@@ -90,26 +90,44 @@ class BaselinePredictor:
 
     #constructor
     def __init__(self, df):
-        self.array = df.to_numpy()
+        pass
 
     def mean(self):
-        return np.mean(self.array)
+        #implement
+        pass
 
     def median(self):
-        return np.median(self.array)
+        #implement
+        pass
 
-    def seasonal_mean(self, feature):
-        return np.mean(self.array[feature])
+    def seasonal_median(self):
+        #implement
+        pass
 
-    def moving_average(self, window):
-        return np.mean(self.array[window:])
+    def moving_average(self):
+        #implement
+        pass
 
-    def ets(self, window):
-        return np.mean(self.array[window:])
+    def s_moving_average(self):
+        #implement
+        pass
 
-    def s_arima(self, window):
+    def s_naive(self):
+        #implement
+        pass
+    
+    def ets(self):
+        #implement
+        pass
+
+    def s_arima(self):
+        #implement
         pass
         
+    def sample_ave_approx(self):
+        #implement
+        pass
+
 
 
 if __name__ == "__main__":

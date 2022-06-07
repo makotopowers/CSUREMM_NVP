@@ -1,6 +1,12 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import statsmodels.tsa.arima.model as ARIMA
+
+
+#use numba on loops and numpy functions with @jit(nopython=True)
+from numba import jit 
+
 
 #read in csv file to dataframe
 class DataReader:
@@ -85,6 +91,24 @@ class BaselinePredictor:
     #constructor
     def __init__(self, df):
         self.array = df.to_numpy()
+
+    def mean(self):
+        return np.mean(self.array)
+
+    def median(self):
+        return np.median(self.array)
+
+    def seasonal_mean(self, feature):
+        return np.mean(self.array[feature])
+
+    def moving_average(self, window):
+        return np.mean(self.array[window:])
+
+    def ets(self, window):
+        return np.mean(self.array[window:])
+
+    def s_arima(self, window):
+        pass
         
 
 

@@ -1,0 +1,30 @@
+
+################################
+# TASKS FOR THE NEWSBOIS TO DO #
+################################
+
+##########################| TASKS FOR 6JUNE |#############################################
+
+    Dragon:
+        -Mean
+        -Moving Average
+        -SAA
+
+    Eitan:
+        -Median
+        -S Moving Average 
+        -SAA 
+
+    Makoto 
+        -Seasonal Median / Feature Median
+        -Seasonal Naive / Feature Naive
+        -S ARIMA 
+
+
+    *** Notes:
+            Not all or really any of these are necessery for the project, we just want some 
+            benchmark measurements to compare to.
+            Use your own judgment to decide whether its implementation is worth the time, 
+            and allocate your efforts accordingly. Happy Coding!
+
+##########################################################################################

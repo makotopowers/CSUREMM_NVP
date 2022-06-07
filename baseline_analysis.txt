@@ -1,0 +1,16 @@
+
+
+Run baseline analysis on the data which we can compare our results to.
+
+    -Mean
+    -Median
+    -Moving Average
+    -Seasonal Moving Average
+    -Exponential Moving Average
+    -Seasonal Naive 
+    -S ARIMA
+    -ETS (Exponential Smoothing)
+    
+    -Basic Machine Learning Models?
+
+    

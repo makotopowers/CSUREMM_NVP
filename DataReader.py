@@ -91,7 +91,14 @@ class BaselinePredictor:
     #constructor
     def __init__(self, df):
         #hello world
+        self.df = df 
         pass
+
+    def season_getter(self, date_style, season):
+        season = self.df[season].unique().sort()
+        new = self.df.groupby(date_style)
+        return new 
+
 
     def mean(self):
         #implement
@@ -135,9 +142,13 @@ if __name__ == "__main__":
     
     #Read in data
     
-    data = DataReader("JD_user_data.csv")
+    data = DataReader("JD_order_data.csv")
     
     data.display_data()
+    make = BaselinePredictor(data)
+    make.season_getter('request_date', 'quantiy_discount_per_unit').head()
+    make.season_getter('request_date', 'quantiy_discount_per_unit').describe()
+    
     
     
 

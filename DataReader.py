@@ -90,14 +90,15 @@ class BaselinePredictor:
 
     #constructor
     def __init__(self, df):
-        #hello world
-        self.df = df 
-        pass
-
-    def season_getter(self, date_style, season):
-        season = self.df[season].unique().sort()
-        new = self.df.groupby(date_style)
-        return new 
+        self.df = df.df
+        
+    #takes in a feature and returns time series for each value of that feature
+    def season_getter(self, feature):
+        seasons = self.df[['order_date', feature]]
+        seasons['count'] = [1 for i in range(len(seasons))]
+    
+        return seasons.pivot_table(index='order_date', columns = feature, values='count', aggfunc='sum').fillna(0)
+        
 
 
     def mean(self):
@@ -144,11 +145,12 @@ if __name__ == "__main__":
     
     data = DataReader("JD_order_data.csv")
     
-    data.display_data()
+    #data.display_data()
     make = BaselinePredictor(data)
-    make.season_getter('request_date', 'quantiy_discount_per_unit').head()
-    make.season_getter('request_date', 'quantiy_discount_per_unit').describe()
-    
+    print(make.season_getter('promise'))
+    #print(make.season_getter('order_date', ['quantity_discount_per_unit','order_date']).describe())
+
+
     
     
 

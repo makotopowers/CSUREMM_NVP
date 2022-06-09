@@ -96,7 +96,45 @@ class BaselinePredictor:
     def extract_feature(self, feature):
         seasons = self.df[['order_date', feature]]
         seasons['count'] = [1 for i in range(len(seasons))]
-        return seasons.pivot_table(index='order_date', columns = feature, values='count', aggfunc='sum').fillna(0)
+        return seasons.pivot_table(index='order_date', columns = feature, values='count', aggfunc='sum').fillna(0).to_numpy().transpose(1,0)
+
+    def estimates (self, season_array, function, interval=1):
+        estimates = []
+        period = 1
+
+        while period < len(season_array)-1:
+            estimate = function(season_array, period, interval)
+            period+=1
+            estimates.append(estimate)
+            
+        return estimates
+
+    def loss_sequence(self, season_array, estimates, function = None, interval=1):
+        #estimate = None
+        loss = []
+        #estimates = []
+        period = 1
+
+        while period < len(season_array)-1:
+            loss.append(estimates[period-1] - season_array[period])
+            period+=1 
+            '''
+            estimate = function(season_array, period, interval)
+            period+=1
+            estimates.append(estimate)
+            loss.append(estimate-season_array[period])
+            '''
+
+        return loss
+        
+    def mse(self, losses):
+        total = 0
+        for loss in losses:
+            total += loss**2
+
+        return total / len(losses)
+
+
     
     def group_sku(self, digits):
         new = self.df 
@@ -111,9 +149,8 @@ class BaselinePredictor:
         #implement
         pass
 
-    def seasonal_median(self):
-        #implement
-        pass
+    def seasonal_median(self, season_array, time, interval):
+        return np.median(season_array[:time])
 
     def moving_average(self):
         #implement
@@ -123,17 +160,16 @@ class BaselinePredictor:
         #implement
         pass
 
-    def s_naive(self):
-        #implement
-        pass
+    def s_naive(self, season_array, time, interval):
+        return np.mean(season_array[time-1])
     
     def ets(self):
         #implement
         pass
 
-    def s_arima(self):
-        #implement
-        pass
+    def s_arima(self, season_array, time, interval):
+        mod = ARIMA.ARIMA(season_array, order=(1,1,1)).fit()
+        return mod.predict(start=time, end=time, dynamic=True)[0]
         
     def sample_ave_approx(self):
         #implement
@@ -142,7 +178,38 @@ class BaselinePredictor:
 
 
 if __name__ == "__main__":
-    pass
+    #Read in data
+    data = DataReader("JD_order_data.csv")
+    
+    #data.display_data()
+    make = BaselinePredictor(data)
+    season_arrays = make.extract_feature('promise')
+
+
+    functions = [make.s_naive, make.s_arima, make.seasonal_median]
+    
+    all_estimates = []
+    all_losses = []
+
+    for function in functions:
+        estimates = []
+        losses = []
+        for array in season_arrays:
+            estimates.append(make.estimates(array, function))
+            loss = make.loss_sequence(array, estimates, interval=1)
+            losses.append(loss)
+
+        all_losses.append(losses)
+        all_estimates.append(estimates)
+    
+    i=1
+    for loss in losses:
+        plt.plot(loss,label=f'{i}')
+        i+=1
+
+    plt.legend()
+    plt.show()
+    
 
 
 

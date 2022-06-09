@@ -90,8 +90,18 @@ class BaselinePredictor:
 
     #constructor
     def __init__(self, df):
-        #hello world
-        pass
+        self.df = df.df
+        
+    #takes in a feature and returns time series for each value of that feature
+    def extract_feature(self, feature):
+        seasons = self.df[['order_date', feature]]
+        seasons['count'] = [1 for i in range(len(seasons))]
+        return seasons.pivot_table(index='order_date', columns = feature, values='count', aggfunc='sum').fillna(0)
+    
+    def group_sku(self, digits):
+        new = self.df 
+        new['sku_ID'] = new['sku_ID'][:digits]
+        return new 
 
     def mean(self):
         #implement
@@ -132,28 +142,7 @@ class BaselinePredictor:
 
 
 if __name__ == "__main__":
-    
-    #Read in data
-    
-    data = DataReader("JD_user_data.csv")
-    
-    data.display_data()
-    
-    
-
-    #Join two dataframes on a feature
-    '''
-    data_1 = DataReader('JD_click_data.csv')
-    data_2 = DataReader('JD_order_data.csv')
-    both = FeatureChooser(data_1, data_2)
-    both.join_tables(['user_ID','sku_ID'],['user_ID','sku_ID'])
-    print(len(both.joined_table))
-    both.joined_table = both.joined_table[both.joined_table['order_ID'].notna()]
-    print(len(both.joined_table))
-    
-    print(both.joined_table.head(30))
-    print(both.joined_table.columns)
-    '''
+    pass
 
 
 

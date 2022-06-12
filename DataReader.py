@@ -17,7 +17,6 @@ class DataReader:
         self.df = pd.read_csv(file_name)
         #self.df = self.df.reset_index()
 
-
     #rename columns
     def rename_columns(self, new_columns):
         self.df = self.df.rename(columns={self.df.columns[0]:new_columns[0],self.df.columns[1]:new_columns[1]})
@@ -111,12 +110,13 @@ class BaselinePredictor:
 
     def loss_sequence(self, season_array, estimates, function = None, interval=1):
         #estimate = None
-        loss = []
+        loss = [0]
         #estimates = []
         period = 1
-
+        
+        
         while period < len(season_array)-1:
-            loss.append(estimates[period-1] - season_array[period])
+            loss.append(estimates[0][period-1] - season_array[period])
             period+=1 
             '''
             estimate = function(season_array, period, interval)
@@ -161,15 +161,19 @@ class BaselinePredictor:
         pass
 
     def s_naive(self, season_array, time, interval):
-        return np.mean(season_array[time-1])
+        return season_array[time-1]
     
     def ets(self):
         #implement
         pass
 
-    def s_arima(self, season_array, time, interval):
-        mod = ARIMA.ARIMA(season_array, order=(1,1,1)).fit()
-        return mod.predict(start=time, end=time, dynamic=True)[0]
+    def s_arima(self, season_array, time, interval = 5):
+        #print(season_array)
+        #print(season_array[:time])
+        mod = ARIMA.ARIMA(season_array[:time], order=(0,1,0)).fit()
+        pred = mod.predict(start=time, end=time)
+        print(pred)
+        return pred
         
     def sample_ave_approx(self):
         #implement
@@ -186,7 +190,9 @@ if __name__ == "__main__":
     season_arrays = make.extract_feature('promise')
 
 
-    functions = [make.s_naive, make.s_arima, make.seasonal_median]
+    #functions = [make.s_naive, make.s_arima, make.seasonal_median]
+    functions = [make.seasonal_median]
+
     
     all_estimates = []
     all_losses = []
@@ -201,14 +207,19 @@ if __name__ == "__main__":
 
         all_losses.append(losses)
         all_estimates.append(estimates)
+
+    
+    print(all_estimates)
+    #print(season_arrays)
     
     i=1
-    for loss in losses:
+    for loss in all_losses[0]:
         plt.plot(loss,label=f'{i}')
         i+=1
 
     plt.legend()
-    plt.show()
+    #plt.show()
+    plt.savefig('promise_s_median_loss.png')
     
 
 

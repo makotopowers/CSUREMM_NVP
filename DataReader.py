@@ -125,10 +125,10 @@ class BaselinePredictor:
 
 
 
-    def generate_figures(self, season_array, indices, output_dir='/Users/makotopowers/Desktop/CSUREMM/reports/figures/bucket_24/'):
+    def generate_figures(self, season_array, indices, directory, output_dir='/Users/makotopowers/Desktop/CSUREMM/'):
         for i in indices:
             plt.plot(season_array[i], label=i)
-            plt.savefig(output_dir+str(i)+'.png')
+            plt.savefig(output_dir+directory+'/'+str(i)+'.png')
             plt.close()
         
 
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     #print(new)
     most, indices = make.most_data(new)
     
-    make.generate_figures(new, indices)
+    make.generate_figures(new, indices, 'bucket_24')
     #print(make.most_data(new))
 
     

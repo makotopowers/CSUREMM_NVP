@@ -97,6 +97,8 @@ class BaselinePredictor:
     #takes in a feature and returns time series for each value of that feature
     def extract_feature(self, bucket_length=1, feature=None, all=False):
         '''
+        bucket_length: length of time step. feature is the feature to be bucketed.
+        all: if true, function returns total order data.
         
         '''
         
@@ -114,7 +116,7 @@ class BaselinePredictor:
 
             seasons = self.df[['datetimes', 'quantity']]
             seasons = seasons.groupby(['datetimes']).sum()
-            print(seasons.head(34))
+            
             return seasons
     
         seasons = self.df[['datetimes', feature, 'quantity']]
@@ -212,7 +214,7 @@ if __name__ == "__main__":
     #Read in data
     data = DataReader("JD_order_data.csv")
     
-    #data.display_data()
+
     make = BaselinePredictor(data)
     season_arrays = make.extract_feature(bucket_length=2, feature='sku_ID')
     print(season_arrays.shape)
@@ -222,12 +224,6 @@ if __name__ == "__main__":
     
     functions = [make.seasonal_median]
 
-
-
-    
-    #plt.legend()
-    #plt.show()
-    #plt.savefig('promise_s_median_loss.png')
     
 
 

@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 import statsmodels.tsa.arima.model as ARIMA
 
 
-
-
 #use numba on loops and numpy functions with @jit(nopython=True)
 from numba import jit 
 
@@ -93,8 +91,8 @@ class BaselinePredictor:
     #constructor
     def __init__(self, df):
         self.df = df.df
-        
-    #takes in a feature and returns time series for each value of that feature
+
+
     def extract_feature(self, bucket_length=1, feature=None, all=False):
         '''
         bucket_length: length of time step. feature is the feature to be bucketed.
@@ -102,28 +100,51 @@ class BaselinePredictor:
         
         '''
         
-
         self.df['hour'] = pd.to_datetime(self.df['order_time']).dt.hour
         self.df['day'] = pd.to_datetime(self.df['order_time']).dt.day
-        
         self.df['hour'] = self.df['hour']//bucket_length
         self.df['datetimes'] = (self.df['day']-1)*(24//bucket_length)  + self.df['hour']
         
 
-
         if all == True:
-            
-
             seasons = self.df[['datetimes', 'quantity']]
             seasons = seasons.groupby(['datetimes']).sum()
-            
             return seasons
     
         seasons = self.df[['datetimes', feature, 'quantity']]
         array = seasons.pivot_table(index=feature, columns = 'datetimes', values='quantity', aggfunc='sum').fillna(0).to_numpy()
+        return array
+
+
+    def remove_bad_skus(self, season_array):
+        indices = []
+        for i in range(season_array.shape[0]):
+            if np.sum(season_array[i]) < 100:
+                indices.append(i)
+        return np.delete(season_array, indices, axis=0)
+
+
+
+    def generate_figures(self, season_array, indices, output_dir='/Users/makotopowers/Desktop/CSUREMM/reports/figures/bucket_24/'):
+        for i in indices:
+            plt.plot(season_array[i], label=i)
+            plt.savefig(output_dir+str(i)+'.png')
+            plt.close()
         
 
-        return array
+    def most_data(self, array):
+        most = []
+        for i in range(array.shape[0]):
+            most.append(tuple([i, np.sum(array[i])]))
+        indices = []
+        most = sorted(most, key=lambda x: x[1], reverse=True)
+        for u, v in most:
+            indices.append(u)
+        print(indices)
+        return most[:20], indices[:20]
+
+
+
 
 
     def estimates (self, season_array, function, interval=1):
@@ -212,17 +233,22 @@ class BaselinePredictor:
 
 if __name__ == "__main__":
     #Read in data
-    data = DataReader("JD_order_data.csv")
+    data = DataReader("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
     
 
     make = BaselinePredictor(data)
-    season_arrays = make.extract_feature(bucket_length=2, feature='sku_ID')
-    print(season_arrays.shape)
-    print(np.sum(season_arrays))
+    season_arrays = make.extract_feature(bucket_length=24, feature='sku_ID')
+    #print(season_arrays.shape)
+    #print(np.sum(season_arrays))
 
-
+    new = make.remove_bad_skus(season_arrays)
+    #print(np.sum(new))
+    #print(new.shape)
+    #print(new)
+    most, indices = make.most_data(new)
     
-    functions = [make.seasonal_median]
+    make.generate_figures(new, indices)
+    #print(make.most_data(new))
 
     
 

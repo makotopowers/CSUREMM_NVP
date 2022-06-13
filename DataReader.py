@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import statsmodels.tsa.arima.model as ARIMA
 
 
+
+
 #use numba on loops and numpy functions with @jit(nopython=True)
 from numba import jit 
 
@@ -87,15 +89,40 @@ class FeatureChooser:
 #turn pandas dataframe into numpy array and run baseline predictions
 class BaselinePredictor:
 
+
     #constructor
     def __init__(self, df):
         self.df = df.df
         
     #takes in a feature and returns time series for each value of that feature
-    def extract_feature(self, feature):
-        seasons = self.df[['order_date', feature]]
-        seasons['count'] = [1 for i in range(len(seasons))]
-        return seasons.pivot_table(index='order_date', columns = feature, values='count', aggfunc='sum').fillna(0).to_numpy().transpose(1,0)
+    def extract_feature(self, bucket_length=1, feature=None, all=False):
+        '''
+        
+        '''
+        
+
+        self.df['hour'] = pd.to_datetime(self.df['order_time']).dt.hour
+        self.df['day'] = pd.to_datetime(self.df['order_time']).dt.day
+        
+        self.df['hour'] = self.df['hour']//bucket_length
+        self.df['datetimes'] = (self.df['day']-1)*(24//bucket_length)  + self.df['hour']
+        
+
+
+        if all == True:
+            
+
+            seasons = self.df[['datetimes', 'quantity']]
+            seasons = seasons.groupby(['datetimes']).sum()
+            print(seasons.head(34))
+            return seasons
+    
+        seasons = self.df[['datetimes', feature, 'quantity']]
+        array = seasons.pivot_table(index=feature, columns = 'datetimes', values='quantity', aggfunc='sum').fillna(0).to_numpy()
+        
+
+        return array
+
 
     def estimates (self, season_array, function, interval=1):
         estimates = []
@@ -187,39 +214,20 @@ if __name__ == "__main__":
     
     #data.display_data()
     make = BaselinePredictor(data)
-    season_arrays = make.extract_feature('promise')
+    season_arrays = make.extract_feature(bucket_length=2, feature='sku_ID')
+    print(season_arrays.shape)
+    print(np.sum(season_arrays))
 
 
-    #functions = [make.s_naive, make.s_arima, make.seasonal_median]
+    
     functions = [make.seasonal_median]
 
-    
-    all_estimates = []
-    all_losses = []
 
-    for function in functions:
-        estimates = []
-        losses = []
-        for array in season_arrays:
-            estimates.append(make.estimates(array, function))
-            loss = make.loss_sequence(array, estimates, interval=1)
-            losses.append(loss)
-
-        all_losses.append(losses)
-        all_estimates.append(estimates)
 
     
-    print(all_estimates)
-    #print(season_arrays)
-    
-    i=1
-    for loss in all_losses[0]:
-        plt.plot(loss,label=f'{i}')
-        i+=1
-
-    plt.legend()
+    #plt.legend()
     #plt.show()
-    plt.savefig('promise_s_median_loss.png')
+    #plt.savefig('promise_s_median_loss.png')
     
 
 

@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import statsmodels.tsa.arima.model as ARIMA
 
 
+
+
 #use numba on loops and numpy functions with @jit(nopython=True)
 from numba import jit 
 
@@ -16,7 +18,6 @@ class DataReader:
     def __init__(self, file_name):
         self.df = pd.read_csv(file_name)
         #self.df = self.df.reset_index()
-
 
     #rename columns
     def rename_columns(self, new_columns):
@@ -88,15 +89,42 @@ class FeatureChooser:
 #turn pandas dataframe into numpy array and run baseline predictions
 class BaselinePredictor:
 
+
     #constructor
     def __init__(self, df):
         self.df = df.df
         
     #takes in a feature and returns time series for each value of that feature
-    def extract_feature(self, feature):
-        seasons = self.df[['order_date', feature]]
-        seasons['count'] = [1 for i in range(len(seasons))]
-        return seasons.pivot_table(index='order_date', columns = feature, values='count', aggfunc='sum').fillna(0).to_numpy().transpose(1,0)
+    def extract_feature(self, bucket_length=1, feature=None, all=False):
+        '''
+        bucket_length: length of time step. feature is the feature to be bucketed.
+        all: if true, function returns total order data.
+        
+        '''
+        
+
+        self.df['hour'] = pd.to_datetime(self.df['order_time']).dt.hour
+        self.df['day'] = pd.to_datetime(self.df['order_time']).dt.day
+        
+        self.df['hour'] = self.df['hour']//bucket_length
+        self.df['datetimes'] = (self.df['day']-1)*(24//bucket_length)  + self.df['hour']
+        
+
+
+        if all == True:
+            
+
+            seasons = self.df[['datetimes', 'quantity']]
+            seasons = seasons.groupby(['datetimes']).sum()
+            
+            return seasons
+    
+        seasons = self.df[['datetimes', feature, 'quantity']]
+        array = seasons.pivot_table(index=feature, columns = 'datetimes', values='quantity', aggfunc='sum').fillna(0).to_numpy()
+        
+
+        return array
+
 
     def estimates (self, season_array, function, interval=1):
         estimates = []
@@ -111,12 +139,13 @@ class BaselinePredictor:
 
     def loss_sequence(self, season_array, estimates, function = None, interval=1):
         #estimate = None
-        loss = []
+        loss = [0]
         #estimates = []
         period = 1
-
+        
+        
         while period < len(season_array)-1:
-            loss.append(estimates[period-1] - season_array[period])
+            loss.append(estimates[0][period-1] - season_array[period])
             period+=1 
             '''
             estimate = function(season_array, period, interval)
@@ -161,15 +190,19 @@ class BaselinePredictor:
         pass
 
     def s_naive(self, season_array, time, interval):
-        return np.mean(season_array[time-1])
+        return season_array[time-1]
     
     def ets(self):
         #implement
         pass
 
-    def s_arima(self, season_array, time, interval):
-        mod = ARIMA.ARIMA(season_array, order=(1,1,1)).fit()
-        return mod.predict(start=time, end=time, dynamic=True)[0]
+    def s_arima(self, season_array, time, interval = 5):
+        #print(season_array)
+        #print(season_array[:time])
+        mod = ARIMA.ARIMA(season_array[:time], order=(0,1,0)).fit()
+        pred = mod.predict(start=time, end=time)
+        print(pred)
+        return pred
         
     def sample_ave_approx(self):
         #implement
@@ -181,34 +214,16 @@ if __name__ == "__main__":
     #Read in data
     data = DataReader("JD_order_data.csv")
     
-    #data.display_data()
+
     make = BaselinePredictor(data)
-    season_arrays = make.extract_feature('promise')
+    season_arrays = make.extract_feature(bucket_length=2, feature='sku_ID')
+    print(season_arrays.shape)
+    print(np.sum(season_arrays))
 
 
-    functions = [make.s_naive, make.s_arima, make.seasonal_median]
     
-    all_estimates = []
-    all_losses = []
+    functions = [make.seasonal_median]
 
-    for function in functions:
-        estimates = []
-        losses = []
-        for array in season_arrays:
-            estimates.append(make.estimates(array, function))
-            loss = make.loss_sequence(array, estimates, interval=1)
-            losses.append(loss)
-
-        all_losses.append(losses)
-        all_estimates.append(estimates)
-    
-    i=1
-    for loss in losses:
-        plt.plot(loss,label=f'{i}')
-        i+=1
-
-    plt.legend()
-    plt.show()
     
 
 

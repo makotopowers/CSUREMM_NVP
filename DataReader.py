@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.tsa.arima.model as ARIMA
+from scipy.stats import norm 
 from icecream import ic
+import time
 
 
 #use numba on loops and numpy functions with @jit(nopython=True)
@@ -18,7 +20,6 @@ class BaselinePredictor:
     def __init__(self, file_name):
         self.df = pd.read_csv(file_name)
 
-
     def extract_feature(self, bucket_length=1, feature=None, all=False):
         '''
         bucket_length: length of time step. feature is the feature to be bucketed.
@@ -27,10 +28,12 @@ class BaselinePredictor:
         '''
         
         self.df['hour'] = pd.to_datetime(self.df['order_time']).dt.hour
-        self.df['day'] = pd.to_datetime(self.df['order_time']).dt.day
-        self.df['hour'] = self.df['hour']//bucket_length
-        self.df['datetimes'] = (self.df['day']-1)*(24//bucket_length)  + self.df['hour']
         
+        
+        self.df['day'] = pd.to_datetime(self.df['order_time']).dt.day-1
+        self.df['hour'] = self.df['hour']//bucket_length
+        self.df['datetimes'] = (self.df['day'])*(24//bucket_length)  + self.df['hour']
+
 
         if all == True:
             seasons = self.df[['datetimes', 'quantity']]
@@ -80,34 +83,55 @@ class BaselinePredictor:
 
     
         
-    def SAA(self, array, overage, underage, sample):
+    def SAA(self, array, overage, underage, n):
         q = underage / (overage + underage) 
-        
-        return sorted(array[:30])[int(np.ceil(q*sample))]
+        return sorted(array)[int(np.ceil(q*n))]
+
+    def func2(self, array, overage, underage, n):
+        q =  underage / (overage + underage)
+
+        mean = np.mean(array)
+        std = np.std(array)
+        return mean + std * norm.ppf(q)
+
+
+    def run(self, array, function, overage, underage):
+        preds = []
+        regs = []
+        for i in range(1,len(array)-1):
+            #print(i)
+            pred = function(array[:i], overage, underage, i-1)
+            preds.append(pred)
+            reg = (pred - array[i])/array[i]
+            regs.append(reg)
+
+        return preds, regs
+
+
 
         
 
 if __name__ == "__main__":
     #Read in data)
-
+    
     make = BaselinePredictor("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
-    season_arrays = make.extract_feature(bucket_length=24, all=True)
-    #print(season_arrays.shape)
-    #print(np.sum(season_arrays))
+    season_arrays = make.extract_feature(feature='sku_ID', bucket_length=1)
 
-    #new = make.remove_bad_skus(season_arrays)
-    #print(np.sum(new))
-    #ic(new.shape)
-    #print(new)
-    ic(type(season_arrays))
-    ic(season_arrays.shape)
+    new = make.remove_bad_skus(season_arrays)
     most, indices = make.most_data(season_arrays)
-    ic(season_arrays)
-    
-    #make.generate_figures(new, indices, 'bucket_24')
-    #print(make.most_data(new))
-    print(make.SAA(season_arrays[0], 0.5, 0.5, 30))
-    
 
+    for i in indices:
+        preds, regs = make.run(season_arrays[i], make.SAA, 0.5, 0.5)
+
+        #plt.plot(regs, label="Relative Regret")
+
+        plt.plot(preds, label="predictions")
+        plt.plot(season_arrays[i], label="actual")
+        #plt.plot(regs, label="relative regret")
+        plt.legend()
+        plt.title("SAA vs Observed Demand for sku_ID: " + str(i) + ", Bucket = 12h" )
+        #plt.title("Relative Regret for SAA vs Oracle for sku_ID: " + str(i) + ", Bucket = 12h" )
+        #plt.savefig('/Users/makotopowers/Desktop/CSUREMM/reports/figures/SAA_bucket_12_test/'+str(i)+'.png')
+        #plt.close()
 
 

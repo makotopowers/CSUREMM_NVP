@@ -96,22 +96,3 @@ class NV_ERM2:
 
     def predict(self, X):
         return self.w[0] + X @ self.w[1:]
-
-
-def synthetic_data(seed=42):
-    n, p = 100, 5
-    rng = np.random.default_rng(seed)
-
-    d = rng.integers(0, 10, size=(n, 1))
-    X = d + rng.normal(10, 1, size=(n, p))
-    return d, X
-
-
-d, X = synthetic_data()
-c_o, c_u = 1, 1
-
-model = NV_ERM2(norm=1)
-w = model.fit(d, X, c_o, c_u, verbose=1)
-q = model.predict(X)
-
-ic(cost(q, d, c_o, c_u))

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.exceptions import DataConversionWarning
 import statsmodels.tsa.arima.model as ARIMA
 from scipy.stats import norm 
 from icecream import ic
@@ -13,8 +14,7 @@ from sympy import true
 
         
 #turn pandas dataframe into numpy array and run baseline predictions
-class BaselinePredictor:
-
+class Data:
 
     #constructor
     def __init__(self, file_name):
@@ -78,21 +78,9 @@ class BaselinePredictor:
         return new 
 
 
-    def seasonal_median(self, season_array, time, interval):
-        return np.median(season_array[:time])
-
     
         
-    def SAA(self, array, overage, underage, n):
-        q = underage / (overage + underage) 
-        return sorted(array)[int(np.ceil(q*n))]
 
-    def func2(self, array, overage, underage, n):
-        q =  underage / (overage + underage)
-
-        mean = np.mean(array)
-        std = np.std(array)
-        return mean + std * norm.ppf(q)
 
 
     def run(self, array, function, overage, underage):
@@ -114,8 +102,8 @@ class BaselinePredictor:
 if __name__ == "__main__":
     #Read in data)
     
-    make = BaselinePredictor("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
-    season_arrays = make.extract_feature(feature='sku_ID', bucket_length=1)
+    make = Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
+    season_arrays = make.extract_feature(bucket_length=1, all=True)
 
     new = make.remove_bad_skus(season_arrays)
     most, indices = make.most_data(season_arrays)

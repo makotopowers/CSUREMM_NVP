@@ -1,3 +1,7 @@
+import pandas as pd
+import statsmodels.tsa.arima.model as ARIMA
+import matplotlib as plt
+
 def moving_average(self):
         #implement
         pass

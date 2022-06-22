@@ -1,57 +1,50 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import statsmodels.tsa.arima.model as ARIMA
 from scipy.stats import norm 
 from icecream import ic
-import time
 
+from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+from statsmodels.tsa.ar_model import AutoReg
+import statsmodels.tsa.arima.model as ARIMA
 
 class methods:
-
-    def __init__(self):
-        string = "Initializing Class. \nHello there. How are you?\n"
-        for char in string:
-            print(char, end="")
-            time.sleep(0.03)
         
-    def moving_average(self):
-        string = "Applying benchmark [MOVING AVERAGE]."
-        for char in string:
-            print(char, end="")
-            time.sleep(0.03)
-            #implement
-            pass
+    def mean(self,array):
+        return np.mean(array)
 
-    def s_moving_average(self):
-        #implement
-        pass
+    def median(self, array):
+        return np.median(array)
 
-    def s_naive(self, season_array, time, interval):
-        return season_array[time-1]
+    def naive(self, array):
+        return array[-1]
 
-    def ets(self):
-        #implement
-        pass
+    def holt(self, array):
+        fit1 = Holt(array, initialization_method="estimated").fit(
+        smoothing_level=0.8, smoothing_trend=0.2, optimized=False)
 
-    def s_arima(self, season_array, time, interval = 5):
-        #print(season_array)
-        #print(season_array[:time])
-        mod = ARIMA.ARIMA(season_array[:time], order=(0,1,0)).fit()
-        pred = mod.predict(start=time, end=time)
-        print(pred)
+        fcast1 = fit1.forecast(1)
+        return fcast1
+
+    def arima(self, array, interval = 5):
+        mod = ARIMA.ARIMA(array, order=(0,0,2)).fit()
+        pred = mod.predict(start=len(array), end=len(array))
         return pred
 
+    def autoreg(self, array):
+        return AutoReg(array)
 
-    def mean(self):
-        #implement
-        pass
+    def SAA(self, array, overage=0.5, underage=0.5):
+        q = underage / (overage + underage) 
+        return sorted(array)[int(np.ceil(q*len(array)))]
 
-    def median(self):
-        #implement
-        pass
+    def normsinv(self, array, overage=0.5, underage=0.5):
+        q =  underage / (overage + underage)
+
+        mean = np.mean(array)
+        std = np.std(array)
+        return mean + std * norm.ppf(q)
 
 
-if __name__=="__main__":
-    m = methods()
-    m.moving_average()
+
+

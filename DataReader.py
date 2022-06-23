@@ -79,6 +79,10 @@ class Data:
 
 
     
+    def get_most(self, array):
+        self.remove_bad_skus(array)
+        most, indices = self.most_data(array)
+        return most, indices
         
 
 

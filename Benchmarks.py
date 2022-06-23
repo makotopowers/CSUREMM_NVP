@@ -36,7 +36,7 @@ class methods:
 
     def SAA(self, array, overage=0.5, underage=0.5):
         q = underage / (overage + underage) 
-        return sorted(array)[int(np.ceil(q*len(array)))]
+        return sorted(array)[int(np.ceil(q*len(array)))-1]
 
     def normsinv(self, array, overage=0.5, underage=0.5):
         q =  underage / (overage + underage)

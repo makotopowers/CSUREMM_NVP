@@ -1,12 +1,7 @@
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.stats import norm 
-from icecream import ic
-
-from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+from scipy.stats import norm
+from statsmodels.tsa.api import ExponentialSmoothing, Holt, SimpleExpSmoothing
 from statsmodels.tsa.ar_model import AutoReg
-import statsmodels.tsa.arima.model as ARIMA
 
 class methods:
         
@@ -26,19 +21,14 @@ class methods:
         fcast1 = fit1.forecast(1)
         return fcast1
 
-    def arima(self, array, interval = 5):
-        mod = ARIMA.ARIMA(array, order=(0,0,2)).fit()
-        pred = mod.predict(start=len(array), end=len(array))
-        return pred
-
     def autoreg(self, array):
         return AutoReg(array)
 
-    def SAA(self, array, overage=0.5, underage=0.5):
+    def SAA(self, array, underage, overage):
         q = underage / (overage + underage) 
         return sorted(array)[int(np.ceil(q*len(array)))-1]
 
-    def normsinv(self, array, overage=0.5, underage=0.5):
+    def normsinv(self, array, underage, overage):
         q =  underage / (overage + underage)
 
         mean = np.mean(array)

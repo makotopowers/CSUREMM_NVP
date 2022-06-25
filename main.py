@@ -1,14 +1,10 @@
-from crypt import methods
-
-from sqlalchemy import over
-import DataReader
-import Benchmarks
-from icecream import ic
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+from icecream import ic
 
-from scipy.stats import norm 
+import Benchmarks
+import DataReader
+
 
 def rolling_window(ts, window):
     """ Extract all consequtive subsequences of the time series ts of length window.
@@ -39,147 +35,145 @@ def rolling_window(ts, window):
     return np.lib.stride_tricks.as_strided(ts, shape=shape, strides=strides)
 
 def normal_ts(ts):
-    chunks=[]
-    for i in range(1,len(ts)+1):
-        chunks.append(ts[:i])
-    return chunks
+    
+    return [ts[:i] for i in range(1,len(ts)+1)]
+    
 
-def compare(slice):
+def compare(array, underage, overage):
     methods = Benchmarks.methods()
     
-    mean = methods.mean(slice)
-    median = methods.median(slice)
-    holt = methods.holt(slice)[0] if len(slice) >= 10 else None
-    naive = methods.naive(slice)
-    saa = methods.SAA(slice, overage=10, underage =1)
-    normsinv = methods.normsinv(slice, overage=10, underage =1)
-    #ic(saa)
-    return [mean, median, holt, naive, saa, normsinv]
+    mean = methods.mean(array)
+    median = methods.median(array)
+    holt = methods.holt(array)[0] if len(array) >= 10 else np.nan
+    naive = methods.naive(array)
+    saa = methods.SAA(array, underage, overage)
+    normsinv = methods.normsinv(array, underage, overage)
+
+    ic(naive, saa)
+    
+    return np.array([mean, median, holt, naive, saa, normsinv]) 
+
+def get_cost(predictions, actual, c_u, c_o):
+    
+    return np.where(actual<predictions , abs(actual-predictions)*c_o, abs(actual-predictions)*c_u)
+    
+def get_loss(predictions, actual):
+    
+    return np.subtract(predictions, actual)
 
 
-def all_preds(ts, window, all=True):
+def all_predictions(ts, window, underage, overage, all=True):
+    no_data_chunk = [np.nan for i in range(6)]
     if all:
         intervals = normal_ts(ts)
-        window = 0
-        start =1
-        preds = np.array([[None for i in range(6)],
-                          [None for i in range(6)]])
-        losses = np.array([[0 for i in range(6)],
-                           [0 for i in range(6)]])
+        window, start = 1,0
+        predictions = np.array([no_data_chunk for i in range(start + 1)])
+        losses = np.array([no_data_chunk for i in range(start + 1)])
+        costs = np.array([no_data_chunk for i in range(start + 1)])
         
     else: 
         intervals = rolling_window(ts, window)
         start=0
-        p_starter = [[None for i in range(6)] for j in range(window+start)]
-        l_starter = [[0 for i in range(6)] for j in range(window +start )]
-        preds = np.array(p_starter)
-        losses = np.array(l_starter)
+        predictions = np.array([no_data_chunk for j in range(window+start)])
+        losses = np.array([no_data_chunk for j in range(window +start )])
+        costs = np.array([no_data_chunk for j in range(window +start )])
 
-    
     for i in range(start, len(intervals)):
-        #ic(intervals[i])
-
-        pred = compare(intervals[i])
-        #ic (pred)
-        if window + i < len(ts):
-            #ic("get_losses called")
-            loss = get_losses(ts, pred, window + i)
-            losses = np.vstack((losses, loss))
-            
-    
-        preds = np.vstack((preds, pred))
-        #ic("in all_preds", preds), ic("in all_preds",losses)
-    #ic(f"{window}",losses)
-    return preds, losses
+        prediction = compare(intervals[i], underage, overage)
 
 
-def get_losses(all_data, predictions, day):
-    
-    losses = []
-    predics = predictions.copy()
-    for i in range(len(predics)):
-       
-        if predics[i] == None:
-            losses.append(None)
-        else:
-            losses.append(abs(predics[i]- all_data[day]))
-
-    #ic("get_losses Loss", losses)
-    return losses
-
-def all_window_sizes(ts, all=False):
-    to_plot = np.array([[None, None, None, None, None, None],[None, None, None, None, None, None]])
-    for i in range(2, len(ts)):
-        #ic(i)
-        preds, losses = all_preds(ts, i, all=False)
-        l = losses.copy()
-        l[l==None] = 0
-        #ic(l)
-        total_losses = np.sum(l, axis=0)
-        total_losses = total_losses/(31-i)
-        #ic("l: ",l, l.shape, "i: ", i)
-        #ic("total_losses: ", total_losses, total_losses.shape)
         
-        to_plot = np.vstack((to_plot, total_losses))
+
+        if window + i < len(ts):
+
+            ic(prediction[3:5], ts[window + i])
+
+
+            loss = get_loss(prediction, ts[window + i])
+            loss = np.reshape(loss, (1, len(loss)))
+            losses = np.concatenate((losses, loss), axis=0)
+
+            cost = get_cost(prediction, ts[window + i], underage, overage)
+            cost = np.reshape(cost, (1, len(cost)))
+            costs = np.concatenate((costs, cost))
+
+        prediction = np.reshape(prediction, (1, len(prediction)))
+        predictions = np.concatenate((predictions, prediction))
+
+    return predictions, losses, costs
+
+def cost_vs_window_size(ts, underage, overage):
+    to_plot = np.array([[np.nan for i in range(6)] for i in range(2)])
+    for i in range(2, len(ts)):
+        
+        preds, losses, costs = all_predictions(ts, i, underage, overage, all=False)
+        
+        
+        
+        average_cost = np.nansum(costs, axis=0)/(31-i)
+        average_cost = np.reshape(average_cost, (1, len(average_cost)))
+
+        to_plot = np.concatenate((to_plot, average_cost), axis=0)
     return to_plot
+
+def loss_vs_window_size(ts):
+    to_plot = np.array([[np.nan for i in range(6)] for i in range(2)])
+    
+    for i in range(2, len(ts)):
+        losses = all_predictions(ts, i, 1, 1, all=False)[1]
+        average_loss = np.nansum(abs(losses), axis=0)/(31-i)
+        to_plot = np.vstack((to_plot, average_loss))
+    return to_plot
+
+def figures(path):
+    dataframe = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
+    data = dataframe.extract_feature(feature=None, interval=24)[0]
+   
+    titles = ["Mean", "Median", "Holt", "Naive", "SAA", "NormsInv"]
+    labels = ["Prediction", "Loss", "Cost"]
+    combos = [[20,1], [10,1], [2,1], [1,1], [1,2], [1,10], [1,20]]
+
+    for combo in combos:
+        predictions, losses, costs = all_predictions(data, 0, combo[0], combo[1], all=True)
+        predictions, losses, costs = predictions.transpose(1,0), losses.transpose(1,0), costs.transpose(1,0)
+        for u, v in zip(titles, predictions):
+            plt.plot(v, label=u)
+        
+        plt.plot(data, label="Actual")
+        plt.legend()
+        plt.title("Predictions for Underage: ("+str(combo[0])+") Overage: ("+str(combo[1]) + ")")
+        plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+".png")
+        plt.close()
+        for u, v in zip(titles, costs):
+            plt.plot(v, label=u+" Cost")
+        plt.legend()
+        plt.title("Costs for Underage: ("+str(combo[0])+") Overage: ("+str(combo[1]) + ")")
+        plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+"_cost.png")
+        plt.close()
+
+
+        costs = cost_vs_window_size(data, combo[0], combo[1])
+        costs = costs.transpose(1,0)
+        for u, v in zip(titles, costs):
+            plt.plot(v, label=u+" Cost")
+        plt.legend()
+        plt.title("Average Costs vs Window Size for Underage: ("+str(combo[0])+") Overage: ("+str(combo[1]) + ")")
+        plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+"_cost_vs_window.png")
+        plt.close()
+        for i in range(1,len(data)):
+            predictions = all_predictions(data, i, combo[0], combo[1], all=False)[0]
+            predictions = predictions.transpose(1,0)
+            for u, v in zip(titles, predictions):
+                plt.plot(v, label=u)
+            plt.plot(data, label="Actual")
+            plt.legend()
+            plt.title("Predictions with Window Size (" + (str(i)) + ") for Underage: ("+str(combo[0])+") Overage: ("+str(combo[1]) + ")")
+            plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+"_W"+str(i)+".png")
+            plt.close()
 
 
 if __name__=='__main__':
-    data = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
-    feat = data.extract_feature(feature="sku_ID", bucket_length=24,)
-    sku_ts, indices = data.get_most(feat)
-    #ic(feat[indices[1]])
-
-    title = ["mean", "median", "holt", "naive", "saa", "normsinv"]
-    for i in range(20):
-        
-        a = feat[indices[i]]
-        p = all_window_sizes(a, all=False)
-    #p, l = all_preds(a, 10, all=False)
-    #ic(p)
-        for j in range(len(p.transpose(1,0))):
-            plt.plot(p.transpose(1,0)[j], label = title[j])
-        plt.title(f"Loss as function of window size for sku_ID: {indices[i]}")
-        plt.legend()
-        plt.savefig(f"/Users/makotopowers/Desktop/CSUREMM/reports/figures/as_function_of_window_size/cu1_co10/sku_ID_{indices[i]}.png")
-        plt.close()
-    #plt.plot(a, label="Actual", linewidth=3, color='black')
-    #plt.show()
-    #preds, losses = all_preds(ts, 10, all=False)
-    #ic(losses)
-    #losses[losses==None] = 0
-    #losses = ic(np.sum(losses, axis=0))
-    #losses = losses/(31-3)
-    #ic(losses)
-    #ic(losses.shape)
-    #title = ["mean", "median", "holt", "naive", "saa", "normsinv"]
-    #plt.plot(preds)
-    #plt.show()
-    #preds, losses = all_preds(ts, window=10)
-    #ic(preds), ic(preds.shape), ic(losses), ic(losses.shape)
-   # for i in range(len(losses.transpose(1,0))):
-        
-        #plt.plot(losses.transpose(1,0)[i], label=f"{title[i]}")
-    #plt.plot(ts, label="Actual", linewidth=3, color='black')
-    #plt.legend()
-    #plt.title(f"Comparison of Losses using All Data, Full Window" )
-    
-    #plt.show()
-
-#loss as a function of window length
+    path = "/Users/makotopowers/Desktop/CSUREMM/reports/figures/different_quantiles"
+    figures(path)
 
 
-    
-    
-    
-    
-#|________|
-#|c_u vs c_o        |
-#|________|
-#Each SKU_ID
-#Average loss of all SKUs, compare to average loss of "all_data"$
-#
-
-
-#look at other data set 
-#loss as a function of different window sizes

@@ -30,6 +30,7 @@ def rolling_window(ts, window):
     array-like of shape (n - window + 1, window)
         _description_
     """
+    
     shape = (ts.size - window + 1, window)
     strides = ts.strides * 2
     return np.lib.stride_tricks.as_strided(ts, shape=shape, strides=strides)
@@ -49,7 +50,7 @@ def compare(array, underage, overage):
     saa = methods.SAA(array, underage, overage)
     normsinv = methods.normsinv(array, underage, overage)
 
-    ic(naive, saa)
+    
     
     return np.array([mean, median, holt, naive, saa, normsinv]) 
 
@@ -86,7 +87,7 @@ def all_predictions(ts, window, underage, overage, all=True):
 
         if window + i < len(ts):
 
-            ic(prediction[3:5], ts[window + i])
+            
 
 
             loss = get_loss(prediction, ts[window + i])
@@ -110,7 +111,7 @@ def cost_vs_window_size(ts, underage, overage):
         
         
         
-        average_cost = np.nansum(costs, axis=0)/(31-i)
+        average_cost = np.nansum(costs, axis=0)/(365-i)      # 365 if RRS, 31 if JD
         average_cost = np.reshape(average_cost, (1, len(average_cost)))
 
         to_plot = np.concatenate((to_plot, average_cost), axis=0)
@@ -121,14 +122,23 @@ def loss_vs_window_size(ts):
     
     for i in range(2, len(ts)):
         losses = all_predictions(ts, i, 1, 1, all=False)[1]
-        average_loss = np.nansum(abs(losses), axis=0)/(31-i)
+        average_loss = np.nansum(abs(losses), axis=0)/(31-i)     # 365 if RRS, 31 if JD
         to_plot = np.vstack((to_plot, average_loss))
     return to_plot
 
-def figures(path):
-    dataframe = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
-    data = dataframe.extract_feature(feature=None, interval=24)[0]
-   
+def figures(JD=True):
+    if JD:
+        dataframe = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
+        data = dataframe.extract_feature(feature=None, interval=24)[0]
+
+    else:
+        dataframe = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
+        jd = ic(dataframe.extract_feature(feature=None, interval=24)[0])
+        data = np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_all_data.npy").transpose(1,0)[0]
+        ic(data)
+    ic('Data loaded. ')
+        
+    
     titles = ["Mean", "Median", "Holt", "Naive", "SAA", "NormsInv"]
     labels = ["Prediction", "Loss", "Cost"]
     combos = [[20,1], [10,1], [2,1], [1,1], [1,2], [1,10], [1,20]]
@@ -136,6 +146,7 @@ def figures(path):
     for combo in combos:
         predictions, losses, costs = all_predictions(data, 0, combo[0], combo[1], all=True)
         predictions, losses, costs = predictions.transpose(1,0), losses.transpose(1,0), costs.transpose(1,0)
+        ic(predictions[1])
         for u, v in zip(titles, predictions):
             plt.plot(v, label=u)
         
@@ -150,7 +161,7 @@ def figures(path):
         plt.title("Costs for Underage: ("+str(combo[0])+") Overage: ("+str(combo[1]) + ")")
         plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+"_cost.png")
         plt.close()
-
+        ic("Checkpoint 1")
 
         costs = cost_vs_window_size(data, combo[0], combo[1])
         costs = costs.transpose(1,0)
@@ -160,7 +171,10 @@ def figures(path):
         plt.title("Average Costs vs Window Size for Underage: ("+str(combo[0])+") Overage: ("+str(combo[1]) + ")")
         plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+"_cost_vs_window.png")
         plt.close()
-        for i in range(1,len(data)):
+
+        ic("Checkpoint 2")
+
+        for i in range(1,min(len(data),50)):
             predictions = all_predictions(data, i, combo[0], combo[1], all=False)[0]
             predictions = predictions.transpose(1,0)
             for u, v in zip(titles, predictions):
@@ -171,9 +185,11 @@ def figures(path):
             plt.savefig(path+"/"+str(combo[0])+"_"+str(combo[1])+"_W"+str(i)+".png")
             plt.close()
 
+        ic(f'Combo: {combo}' + ' done.')
+
 
 if __name__=='__main__':
-    path = "/Users/makotopowers/Desktop/CSUREMM/reports/figures/different_quantiles"
-    figures(path)
+    path = "/Users/makotopowers/Desktop/CSUREMM/reports/figures/RR_FIGS/different_quantiles"
+    figures(JD=False)
 
 

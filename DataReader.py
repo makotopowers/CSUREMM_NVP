@@ -1,159 +1,112 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import statsmodels.tsa.arima.model as ARIMA
+import dask.dataframe as dd
+from numba import jit
+
+class Data:
+    def __init__(self, file_name, RR=False):
+        self.RR = RR
+        if RR:
+            pass
+        else:
+            self.df = pd.read_csv(file_name)
 
 
-#use numba on loops and numpy functions with @jit(nopython=True)
-from numba import jit 
-
-
-#read in csv file to dataframe
-class DataReader:
-
-    
-    #constructor
-    def __init__(self, file_name):
-        self.df = pd.read_csv(file_name)
-        #self.df = self.df.reset_index()
-
-
-    #rename columns
-    def rename_columns(self, new_columns):
-        self.df = self.df.rename(columns={self.df.columns[0]:new_columns[0],self.df.columns[1]:new_columns[1]})
-        print(self.df.columns)
+    def read_RR(self, feature=None, interval=24):
+        df1 = pd.read_csv("/Users/makotopowers/Desktop/CSUREMM/1.orders.csv", dtype={'distc_dest_org': 'object'})
+        df2 = pd.read_csv("/Users/makotopowers/Desktop/CSUREMM/2.SKU_details.csv")
         
-    #display data: head, columns, info 
-    def display_data(self):
-        print(self.df.head(30))
-        print(self.df.columns)
-        print(self.df.info())
-        print(self.df.describe())
-
-    #plot data
-    def plot_data(self):
-        self.df.plot.scatter(x=self.df.columns[0], y=self.df.columns[2])
-        plt.show()
-
-    #drop a column
-    def drop_column(self, column):
-        self.df = self.df.drop(column, axis=1)
-
-    #trim rows 
-    def trim_rows(self,start, end = None):
-        self.df = self.df.iloc[start:end]
-
-    #split column into two columns
-    def split_column(self, column):
-        self.df = self.df.request_time.str.split(expand=True)
-        self.df = self.df.drop(1, axis=1)
-        self.df.rename(columns={0: column}, inplace=True)
-        self.df = self.df.groupby([column])[column].count()
-
-    #save data to csv
-    def save_data(self, path):
-        self.df.to_csv(path, index=False)
-
-    #merge dataframes on column
-    def merge_data(self, column):
-        self.df = pd.merge(self.df, self.df, on=column)
-        self.df = self.df.drop(1, axis=1)
-        self.df = self.df.drop(2, axis=1)
-        self.df = self.df.groupby([column])[column].count()
+        df1 = df1[['order_date', 'order_no']]
+        df2 = df2[['ORDER_NO', 'RRS_MATE_CODE', 'ORDER_AMT']]
         
-    #choose features
-    def choose_features(self, features):
-        pass
+        df = df2.merge(df1, how='inner', left_on='ORDER_NO', right_on='order_no')
 
+        df['hour'] = pd.to_datetime(df['order_date']).dt.hour//interval
+        df['day'] = pd.to_datetime(df['order_date']).dt.dayofyear-1
+        df['datetimes'] = (df['day'])*(24//interval) + df['hour']
+        df = df.drop(columns=['hour', 'day', 'order_date', 'ORDER_NO', 'order_no'])
 
-#take two pandas dataframes and join them on a feature 
-class FeatureChooser:
-
-    #constructor
-    def __init__(self, table_1, table_2):
-        self.table_data_1 = table_1.df
-        self.table_data_2 = table_2.df
         
-    #merge two tables on a column
-    def join_tables(self, feature):
-        self.joined_table = self.table_data_1.merge(self.table_data_2, on=feature)
-        return self.joined_table
-    
-    #merge two tables on two columns 
-    def join_tables(self, left, right):
-        joined_df = pd.merge(self.table_data_1,self.table_data_2, how='left',left_on=left,right_on=right)
-        self.joined_table = joined_df
+        u = list(df['datetimes'].unique())
+        for i in range(8760):
+            if i in u:
+                continue
 
-
-#turn pandas dataframe into numpy array and run baseline predictions
-class BaselinePredictor:
-
-    #constructor
-    def __init__(self, df):
-        #hello world
-        pass
-
-    def mean(self):
-        #implement
-        pass
-
-    def median(self):
-        #implement
-        pass
-
-    def seasonal_median(self):
-        #implement
-        pass
-
-    def moving_average(self):
-        #implement
-        pass
-
-    def s_moving_average(self):
-        #implement
-        pass
-
-    def s_naive(self):
-        #implement
-        pass
-    
-    def ets(self):
-        #implement
-        pass
-
-    def s_arima(self):
-        #implement
-        pass
+            else:
+                new_row = {'RRS_MATE_CODE':np.nan, 'ORDER_AMT':0, 'datetimes':i}
+                df = df.append(new_row, ignore_index=True)
         
-    def sample_ave_approx(self):
-        #implement
-        pass
+        df.sort_values(by=['datetimes'], inplace=True)
+
+        if feature == None:
+            quantity = df[['datetimes', 'ORDER_AMT']]
+            quantity = quantity.groupby(['datetimes']).sum() 
+            q = q.to_numpy().fillna(0)
+            return q
+
+        array = pd.pivot_table(df, index=feature, columns = 'datetimes', values='ORDER_AMT', aggfunc='sum',dropna=False).fillna(0)
+        array = array.to_numpy()
+        return array
+
+    def extract_feature(self, interval=1, feature=None):
+        if self.RR:
+            if feature:
+                return np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_by_sku.npy")
+
+            else:
+                return np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_all_data.npy")
+            
+
+
+        else:
+            self.df['hour'] = pd.to_datetime(self.df['order_time']).dt.hour//interval
+            self.df['day'] = pd.to_datetime(self.df['order_time']).dt.day-1
+            self.df['datetimes'] = (self.df['day'])*(24//interval)  + self.df['hour']
+
+            if feature == None:
+                quantity = self.df[['datetimes', 'quantity']]
+                quantity = quantity.groupby(['datetimes']).sum()
+                return quantity.fillna(0).to_numpy().transpose(1,0)
+            else:
+                quantity_feature = self.df[['datetimes', feature, 'quantity']]
+                array = quantity_feature.pivot_table(index=feature, columns = 'datetimes', values='quantity', aggfunc='sum').fillna(0).to_numpy()
+                return array
 
 
 
-if __name__ == "__main__":
-    
-    #Read in data
-    
-    data = DataReader("JD_user_data.csv")
-    
-    data.display_data()
-    
-    
 
-    #Join two dataframes on a feature
-    '''
-    data_1 = DataReader('JD_click_data.csv')
-    data_2 = DataReader('JD_order_data.csv')
-    both = FeatureChooser(data_1, data_2)
-    both.join_tables(['user_ID','sku_ID'],['user_ID','sku_ID'])
-    print(len(both.joined_table))
-    both.joined_table = both.joined_table[both.joined_table['order_ID'].notna()]
-    print(len(both.joined_table))
-    
-    print(both.joined_table.head(30))
-    print(both.joined_table.columns)
-    '''
+    def remove_bad_data(self, array):
+        indices = []
+        for i in range(array.shape[0]):
+            if np.sum(array[i]) < 100:
+                indices.append(i)
+        return np.delete(array, indices, axis=0)
+        
+
+
+
+    def most_data(self, array):
+        most = []
+        indices = []
+        most_data = []
+        for i in range(array.shape[0]):
+            most.append(tuple([i, np.sum(array[i])]))
+        most = sorted(most, key=lambda x: x[1], reverse=True)
+        for u, v in most:
+            indices.append(u)
+            most_data.append(array[u])
+        
+        return most_data[:20], indices[:20]
+
+
+
+
+    def get_most(self, array):
+        self.remove_bad_data(array)
+        most_data, indices = self.most_data(array)
+        return most_data, indices
+        
+
 
 
 

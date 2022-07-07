@@ -16,6 +16,61 @@ Run baseline analysis on the data which we can compare our results to.
     -Basic Machine Learning Models?
 
 
+
+
+What features/seasons would we like to consider when analyzing trends?
+
+    -Price
+    -Discount
+    -Promise 
+    -SKU attribute 1 
+    -SKU attribute 2
+    -User level 
+    -Age
+    -Marital Status 
+    -Gender 
+    -Education Level 
+    -City Level 
+    -Purchasing Power 
+
+Group purchases/demand by feature/season and run analysis. Does it vary significantly from the analysis without seasons?
+
+######| How to extract data by feature |######
+
+1. First, merge tables with desired data features using the FeatureChooser class. 
+2. Drop columns not needed and group by feature. Then, using df.to_numpy() to convert to numpy array, 
+    with the rows the different feature values. 
+3. Run analysis on each row of the numpy array. 
+
+
+
+|quantity_discount_per_unit|  <- this could be any feature we want to analyze 
+|--------------------------|
+0                          | Time Series Data |    <- This is seasonal data for the quantity_discount_per_unit feature
+1
+5
+10
+20
+
+    After to_numpy()
+
+
+[[time series for qdpu =0  ], 
+ [time series for qdpu =1  ],
+ [time series for qdpu =5  ],
+ [time series for qdpu =10 ],
+ [time series for qdpu =20 ]]  <- Calculate mean for each row 
+
+
+ Things to think about: 
+
+    - If the regret/error is really high, should we not consdier the season/feature as a true season/feature?
+
+
+Machine Learning (DNN) to figure out if there are correlations between the seasons.
+
+
+
   
 
 

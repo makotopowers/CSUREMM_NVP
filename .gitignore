@@ -87,3 +87,15 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+# images
+*.png
+
+#data
+*.hdf5
+*.csv
+*.yaml
+*.npy
+*.zip
+
+*.pdf

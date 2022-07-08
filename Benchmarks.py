@@ -23,9 +23,9 @@ Each function has the same signature, even if the parameter passed in is not use
 import numpy as np
 from icecream import ic
 from scipy.stats import norm
-from statsmodels.tsa.api import ExponentialSmoothing, Holt, SimpleExpSmoothing
-from statsmodels.tsa.ar_model import AutoReg
+from statsmodels.tsa.api import Holt
 
+from src.models.oddp import ODDP
 
 ## NOTE: Each function below should have the signature:
 ## 
@@ -57,6 +57,9 @@ def naive(array, underage, overage):
 #----------------------------------------------------------------------------------------------------------------------#
 
 def holt(array, underage, overage):
+    if len(array)<10:
+        return np.nan
+
     fit1 = Holt(array, initialization_method="estimated").fit(
     smoothing_level=0.8, smoothing_trend=0.2, optimized=False)
 
@@ -83,28 +86,33 @@ def normsinv(array, underage, overage):
 #----------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------------------------#
 
+def oddp(array, underage, overage):
+    x = ODDP(c_u = underage, c_o = overage)
+    return x.fit_and_predict(array)
+
+
+
+#----------------------------------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------------------------------#
+
 ## This function returns a dictionary of the algorithms, with the key being the name of the algorithm 
 ## and the value being the algorithm itself.
 
 ## NOTE: Make sure to add the algorithm to the dictionary below when you add a new algorithm.
 
 def get_algos():
+
     algos = {
-        "mean": mean,
-        "median": median,
         "naive": naive,
         "holt": holt,
         "SAA": SAA,
-        "normsinv": normsinv
+        "oddp": oddp
     }
 
     return algos
 
 #----------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------------------------#
-
-
-
 
 
 

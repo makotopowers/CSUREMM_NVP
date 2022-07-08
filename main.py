@@ -24,6 +24,8 @@ from icecream import ic
 
 import Benchmarks
 import DataReader
+import warnings
+warnings.filterwarnings("ignore")
 
 #----------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------------------------#
@@ -93,7 +95,7 @@ def get_cost(predictions, actual, c_u, c_o):
     costs = dict()
 
     for key in predictions:
-        costs[key] =  abs(actual-predictions)*c_o if actual < predictions else abs(actual-predictions)*c_u
+        costs[key] =  abs(actual-predictions[key])*c_o if actual < predictions[key] else abs(actual-predictions[key])*c_u
     return costs
 
 #----------------------------------------------------------------------------------------------------------------------#
@@ -109,17 +111,17 @@ def get_cost(predictions, actual, c_u, c_o):
 ## rolling_window : bool. Whether to use a rolling window or not.
 ## Returns: dict of int, dict of float
 
-def all_predictions(ts, methods, window, underage, overage, rolling_window=True):
+def all_predictions(ts, methods, window, underage, overage, roll_window=True):
 
-    if rolling_window:
+    if roll_window:
         intervals = rolling_window(ts, window)
-        window, start = window, 0
+        window, start = window, 5
     else:
         intervals = normal_ts(ts)
-        window, start = 1, 0
+        window, start = 1, 5
 
-    predictions = {key: np.array([np.nan for i in range(start + window )]) for key in Benchmarks.methods().algos}
-    costs = {key: np.array([np.nan for i in range(start + window)]) for key in Benchmarks.methods().algos}
+    predictions = {key: np.array([np.nan for i in range(start + window )]) for key in methods}
+    costs = {key: np.array([np.nan for i in range(start + window)]) for key in methods}
 
     for i in range(start, len(intervals)):
         prediction = compare(methods, intervals[i], underage, overage)
@@ -128,10 +130,14 @@ def all_predictions(ts, methods, window, underage, overage, rolling_window=True)
             cost = get_cost(prediction, ts[window + i], underage, overage)
 
             for key in cost:
-                costs[key] = np.concatenate((costs[key], cost[key]))
+            
+                
+                costs[key] = np.append(costs[key], cost[key])
 
         for key in prediction:
-            predictions[key] = np.concatenate((predictions[key], prediction[key]))
+        
+            predictions[key] = np.append(predictions[key], prediction[key])
+
 
     return predictions, costs
 
@@ -167,28 +173,36 @@ def cost_vs_window_size(ts, underage, overage, wstart=10, wend=50):
 ## parameters: None. The function will fetch methods from Benchmarks.methods().
 ## Returns: dict of int. The ranking of each method.
 
+## NOTE: WARNING: This function is slow. 
+
 def rank():
     data = DataReader.prepare_data()
     methods = Benchmarks.get_algos()
     rankings = {key: np.array([]) for key in methods}
     quantiles = [[10,1], [2,1], [1,1], [1,2], [1,10]]
 
-    for key in data:
-        for ts in data[key]:
-            for q in quantiles:
+    for datakey in data:
+        ts = data[datakey][1][:min(len(data[datakey][1]), 60)]
+        q = quantiles[2]
+        
+        predictions, costs = all_predictions(ts, methods, window=1, underage=q[0], overage=q[1], roll_window=False)
+        for key in costs:
+            rankings[key] = np.append(rankings[key], np.nanmean(costs[key])) 
 
-                predictions, costs = all_predictions(ts, methods, window=1, underage=q[0], overage=q[1], rolling_window=False)
-                for key in costs:
-                    rankings[key] = np.concatenate((rankings[key], np.nanmean(costs[key]))) 
+        ic('here' + datakey)
+        # for i in range(10, 20):
+            
+        #     if i >= len(ts)-10:
+        #         break
+        #     predictions, costs = all_predictions(ts, methods, window=i, underage=q[0], overage=q[1], roll_window=True)
+        #     for key in costs:
+        #         rankings[key] = np.append(rankings[key], np.nanmean(costs[key]))
 
-                for i in range(10, 100):
-                    if i >= len(ts)-10:
-                        break
-                    predictions, costs = all_predictions(ts, methods, window=i, underage=q[0], overage=q[1], rolling_window=True)
-                    for key in costs:
-                        rankings[key] = np.concatenate((rankings[key], np.nanmean(costs[key])))
+        ordering = [(key, np.nanmean(rankings[key])) for key in rankings]
+        ordering = sorted(ordering, key=lambda x: x[1])
+        ranks = [(key[0], i + 1) for i, key in enumerate(ordering)]
                 
-    return {k: v for k, v in sorted(rankings.items(), key=lambda item: item[1])}
+    return ranks
         
     
 
@@ -253,17 +267,8 @@ def figures(path, features, aggs):
 #----------------------------------------------------------------------------------------------------------------------#
 
 if __name__=='__main__':
-    path = "/Users/makotopowers/Desktop/CSUREMM/reports/figures/RR_FIGS/different_quantiles"
-    #figures(JD=False)
-    data = np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_all_data.npy").transpose(1,0)[0]
-    m = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv", RR=True)
-    
-   
-    ic(data)
-
-    preds, costs = all_predictions(data, 30, 1, 1, all=False)
-
-    ic(preds, costs)
+    ran = rank()
+    ic(ran)
 
 #----------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------------------------#

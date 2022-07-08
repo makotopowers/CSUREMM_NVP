@@ -28,7 +28,6 @@ The JD dataset is over 30 days, and the RRS dataset is over 365 days.
 import datetime
 
 import numpy as np
-
 import vaex
 from icecream import ic
 
@@ -60,6 +59,24 @@ def comp(date_string, start_date_string):
 #----------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------------------------#
 
+
+def correlate():
+    JD_correlations = dict()
+    JD_all = vaex.open("data/raw/JD_order_data.csv.hdf5")
+    JD_all['promise'] = JD_all.promise.apply(lambda x : int(x) if x != '-' else np.nan)
+    JD_col_names = ['promise', 'original_unit_price', 'final_unit_price', 'direct_discount_per_unit', 'quantity_discount_per_unit', 'bundle_discount_per_unit', 'coupon_discount_per_unit']
+    for column in JD_col_names:
+        JD_correlations[str(column)] = JD_all.correlation(x = 'quantity', y=f'{column}')
+
+    RRS_correlations = dict()
+    RRS_all = vaex.open("data/raw/1+2_orders_SKU_details.hdf5")
+    ic(RRS_all.column_names)
+    RRS_col_names = []
+    for column in RRS_col_names:
+        RRS_correlations[str(column)] = RRS_all.correlation(x = 'quantity', y=f'{column}')
+
+    return JD_correlations, RRS_correlations
+
 ## Prepare the data for the analysis.
 ## parameters:
 ## None
@@ -68,75 +85,75 @@ def comp(date_string, start_date_string):
 
 def prepare_data():
 
+    data = dict()
     #----------------------------------------------------------------------------------------------------------------------#
     ## JD dataset processing ##
 
-    data = dict()
-    JD = vaex.open('data/raw/JD_order_data.csv.hdf5')
-    JD['order_time'] = JD.order_time.apply(lambda x: x.split('.')[0])
-    JD['dates'] = JD.order_time.apply(convert)
-    JD['new_dates'] = JD.dates.apply(lambda x: comp(x, '2018-03-01 00:00:00'))
+    JD_all = vaex.open('data/processed/JD_all.hdf5')
     
-    ic("Finished Reading JD Data. (1/6)")
-
-    JD_all = JD.groupby(by='new_dates').agg({'quantity': 'sum'}).quantity.values.reshape(1,-1)
-    dates, values = JD_all.quantity.values.reshape(1,-1), JD_all.new_dates.values.reshape(1,-1)
-    data['RRS_all'] = np.column_stack((dates, values))
-
-
-    ic(JD_all)
-    data['JD_all'] = JD_all
-
-    ic("Finished Processing 'ALL' JD Data. (2/6)")
-
-    JD_sku = JD.groupby(by=['new_dates', 'sku_ID']).agg({'quantity': 'sum'})
+    dates, values = JD_all.new_dates.values.reshape(1,-1), JD_all.quantity.values.reshape(1,-1)
+    data['JD_all'] = np.vstack((dates, values)).data
+    
+    JD_sku = vaex.open('data/processed/JD_sku.hdf5')
     JD_sku['sku_ID'] = JD_sku.sku_ID.apply(lambda x: str(x))
 
     JD_skus = dict()
-    JD_by_sku = JD_sku.groupby(by='sku_ID').agg({'quantity': 'sum'})
+    JD_by_sku = vaex.open('data/processed/JD_by_sku.hdf5')
+
     JD_by_sku = [str(JD_by_sku.sort(by=['quantity', 'sku_ID'], ascending=[False, True]).sku_ID.values[i]) for i in range(20)]
 
     for sku in JD_by_sku:
-        JD_skus[sku] = np.column_stack((JD_sku[JD_sku.sku_ID == sku].new_dates.values.to_numpy(), JD_sku[JD_sku.sku_ID == sku].quantity.values))
+        JD_skus[sku] = np.column_stack((JD_sku[JD_sku.sku_ID == sku].new_dates.values, JD_sku[JD_sku.sku_ID == sku].quantity.values))
 
     for key in JD_skus:
         JD_skus[key] = JD_skus[key][JD_skus[key][:,0].argsort()]
+        for i in range(31):
+            try: 
+                if (JD_skus[key][i][0] != i):
+                    JD_skus[key] = np.insert(JD_skus[key], i, [i, 0], axis=0)
 
-    data['JD_sku'] = JD_sku
+            except(IndexError):
+                JD_skus[key] = np.vstack((JD_skus[key],[i, 0]))
+            
+    for key in JD_skus:
+        data['JD'+key] = JD_skus[key].transpose(1,0)
 
-    ic("Finished Processing 'SKU' JD Data. (3/6)")
+    ic("Finished Processing JD Data. (1/2)")
 
     #----------------------------------------------------------------------------------------------------------------------#
     ## RRS dataset processing ##
 
-    RRS = vaex.open('data/raw/1+2_orders_SKU_details.hdf5')
+    RRS_all = vaex.open('data/processed/RRS_all.hdf5')
 
-    ic("Finished Reading RRS Data. (4/6)")
+    dates, values = RRS_all.new_dates.values.reshape(1,-1), RRS_all.ORDER_AMT.values.reshape(1,-1)
+    to_delete = np.where(dates[0] < 0)
+    dates, values = np.delete(dates[0], to_delete, axis=0).reshape(1,-1), np.delete(values[0], to_delete, axis=0).reshape(1,-1)
 
-    RRS['dates'] = RRS.order_date.apply(convert)
-    RRS['new_dates'] = RRS.dates.apply(lambda x: comp(x, '2018-09-01 00:00:00'))
+    data['RRS_all'] = ic(np.vstack((dates, values)))
 
-    RRS_all = RRS.groupby(by='new_dates').agg({'ORDER_AMT': 'sum'})
-    dates, values = RRS_all.ORDER_AMT.values.reshape(1,-1), RRS_all.new_dates.values.reshape(1,-1)
-    data['RRS_all'] = np.column_stack((dates, values))
-
-    ic("Finished Processing 'ALL' RRS Data. (5/6)")
-
-    RRS_sku = RRS.groupby(by=['new_dates', 'RRS_MATE_CODE']).agg({'ORDER_AMT': 'sum'})
-   
-    RRS_sku['RRS_MATE_CODE'] = RRS_sku.RRS_MATE_CODE.apply(lambda x: str(x))
     RRS_skus = dict()
-    RRS_by_sku = RRS_sku.groupby(by='RRS_MATE_CODE').agg({'ORDER_AMT': 'sum'})
-    RRS_by_sku = [str(RRS_by_sku.sort(by=['ORDER_AMT', 'RRS_MATE_CODE'], ascending=[False, True]).RRS_MATE_CODE.values[i]) for i in range(20)]
+    RRS_sku = vaex.open('data/processed/RRS_sku.hdf5')
+
+    RRS_by_sku = vaex.open('data/processed/RRS_by_sku.hdf5')
+    RRS_by_sku = [str(RRS_by_sku.sort(by=['ORDER_AMT', 'RRS_MATE_CODE'], ascending=[False, True]).RRS_MATE_CODE.values[i]) for i in range(3)]
 
     for sku in RRS_by_sku:
-        RRS_skus[sku] = np.column_stack((RRS_sku[RRS_sku.RRS_MATE_CODE == sku].new_dates.values.to_numpy(), RRS_sku[RRS_sku.RRS_MATE_CODE == sku].ORDER_AMT.values))
+        RRS_skus[sku] = np.column_stack((RRS_sku[RRS_sku.RRS_MATE_CODE == sku].new_dates.values, RRS_sku[RRS_sku.RRS_MATE_CODE == sku].ORDER_AMT.values))
 
     for key in RRS_skus:
         RRS_skus[key] = RRS_skus[key][RRS_skus[key][:,0].argsort()]
-    data['RRS_sku'] = RRS_sku
+        for i in range(365):
+            try: 
+                if (RRS_skus[key][i][0] != i):
+                    RRS_skus[key] = np.insert(RRS_skus[key], i, [i, 0], axis=0)
 
-    ic("Finished Processing 'SKU' RRS Data. (6/6)")
+            except(IndexError):
+                RRS_skus[key] = np.vstack((RRS_skus[key],[i, 0]))
+
+    for key in RRS_skus:
+        data['RRS'+key] = RRS_skus[key].transpose(1,0)
+
+    ic("Finished Processing RRS Data. (2/2)")
 
     #----------------------------------------------------------------------------------------------------------------------#
 
@@ -146,42 +163,6 @@ def prepare_data():
 #----------------------------------------------------------------------------------------------------------------------#
 
 
-
 if __name__ == '__main__':
-    RRS = vaex.open('data/raw/1+2_orders_SKU_details.hdf5')
-    data = dict()
-    RRS['dates'] = RRS.order_date.apply(convert)
-    RRS['new_dates'] = RRS.dates.apply(lambda x: comp(x, '2018-10-01 00:00:00'))
-
-    ic("Finished Processing 'ALL' RRS Data. (5/6)")
-
-    RRS_sku = RRS.groupby(by=['new_dates', 'RRS_MATE_CODE']).agg({'ORDER_AMT': 'sum'})
-   
-    #RRS_sku['RRS_MATE_CODE'] = RRS_sku.RRS_MATE_CODE.apply(lambda x: str(x))
-    
-    ic(RRS_sku)
-    RRS_skus = dict()
-    RRS_by_sku = RRS_sku.groupby(by='RRS_MATE_CODE').agg({'ORDER_AMT': 'sum'})
-
-
-    ic(RRS_by_sku)
-    RRS_by_sku = [str(RRS_by_sku.sort(by=['ORDER_AMT', 'RRS_MATE_CODE'], ascending=[False, True]).RRS_MATE_CODE.values[i]) for i in range(20)]
-    ic(RRS_by_sku)
-
-    ic(RRS_by_sku[0])
-    ic(RRS_sku[RRS_sku.RRS_MATE_CODE == RRS_by_sku[0]].new_dates.values.to_numpy(), RRS_sku[RRS_sku.RRS_MATE_CODE == RRS_by_sku[0]].ORDER_AMT.values)
-    ic(RRS_sku[RRS_sku.RRS_MATE_CODE == RRS_by_sku[0]].new_dates.values.to_numpy().shape, RRS_sku[RRS_sku.RRS_MATE_CODE == RRS_by_sku[0]].ORDER_AMT.values.shape)
-
-    for sku in RRS_by_sku:
-        RRS_skus[sku] = np.column_stack((RRS_sku[RRS_sku.RRS_MATE_CODE == sku].new_dates.values.to_numpy(), RRS_sku[RRS_sku.RRS_MATE_CODE == sku].ORDER_AMT.values))
-
-    for key in RRS_skus:
-        RRS_skus[key] = RRS_skus[key][RRS_skus[key][:,0].argsort()]
-    data['RRS_sku'] = RRS_skus
-
-    ic("Finished Processing 'SKU' RRS Data. (6/6)")
-    
-
-#----------------------------------------------------------------------------------------------------------------------#
-#----------------------------------------------------------------------------------------------------------------------#
-
+    x = prepare_data()
+    ic(x)

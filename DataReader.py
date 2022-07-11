@@ -100,7 +100,7 @@ def prepare_data():
     JD_skus = dict()
     JD_by_sku = vaex.open('data/processed/JD_by_sku.hdf5')
 
-    JD_by_sku = [str(JD_by_sku.sort(by=['quantity', 'sku_ID'], ascending=[False, True]).sku_ID.values[i]) for i in range(20)]
+    JD_by_sku = [str(JD_by_sku.sort(by=['quantity', 'sku_ID'], ascending=[False, True]).sku_ID.values[i]) for i in range(0)]
 
     for sku in JD_by_sku:
         JD_skus[sku] = np.column_stack((JD_sku[JD_sku.sku_ID == sku].new_dates.values, JD_sku[JD_sku.sku_ID == sku].quantity.values))
@@ -132,12 +132,11 @@ def prepare_data():
 
     data['RRS_all'] = ic(np.vstack((dates, values)))
 
-
     RRS_skus = dict()
     RRS_sku = vaex.open('data/processed/RRS_sku.hdf5')
 
     RRS_by_sku = vaex.open('data/processed/RRS_by_sku.hdf5')
-    RRS_by_sku = [str(RRS_by_sku.sort(by=['ORDER_AMT', 'RRS_MATE_CODE'], ascending=[False, True]).RRS_MATE_CODE.values[i]) for i in range(3)]
+    RRS_by_sku = [str(RRS_by_sku.sort(by=['ORDER_AMT', 'RRS_MATE_CODE'], ascending=[False, True]).RRS_MATE_CODE.values[i]) for i in range(0)]
 
     for sku in RRS_by_sku:
         RRS_skus[sku] = np.column_stack((RRS_sku[RRS_sku.RRS_MATE_CODE == sku].new_dates.values, RRS_sku[RRS_sku.RRS_MATE_CODE == sku].ORDER_AMT.values))

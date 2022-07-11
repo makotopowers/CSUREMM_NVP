@@ -156,6 +156,7 @@ def all_predictions(ts, methods, window, underage, overage, roll_window=True):
 ## Returns: dict of float
 
 def cost_vs_window_size(ts, underage, overage, wstart=10, wend=50):
+
     average_costs = {key: np.array([np.nan for i in range(wstart)]) for key in Benchmarks.methods().algos}
 
     for i in range(wstart,wend): # 50 if RRS, len(ts) if JD
@@ -176,20 +177,22 @@ def cost_vs_window_size(ts, underage, overage, wstart=10, wend=50):
 ## NOTE: WARNING: This function is slow. 
 
 def rank():
+
     data = DataReader.prepare_data()
     methods = Benchmarks.get_algos()
     rankings = {key: np.array([]) for key in methods}
     quantiles = [[10,1], [2,1], [1,1], [1,2], [1,10]]
 
     for datakey in data:
-        ts = data[datakey][1][:min(len(data[datakey][1]), 60)]
-        q = quantiles[2]
+        ts = data[datakey][1] # For shortening [:min(len(data[datakey][1]), 60)]
+        for q in quantiles:
         
-        predictions, costs = all_predictions(ts, methods, window=1, underage=q[0], overage=q[1], roll_window=False)
-        for key in costs:
-            rankings[key] = np.append(rankings[key], np.nanmean(costs[key])) 
+            predictions, costs = all_predictions(ts, methods, window=1, underage=q[0], overage=q[1], roll_window=False)
+            for key in costs:
+                rankings[key] = np.append(rankings[key], np.nanmean(costs[key])) 
 
         ic('here' + datakey)
+
         # for i in range(10, 20):
             
         #     if i >= len(ts)-10:
@@ -199,10 +202,11 @@ def rank():
         #         rankings[key] = np.append(rankings[key], np.nanmean(costs[key]))
 
         ordering = [(key, np.nanmean(rankings[key])) for key in rankings]
+        std = {key: np.nanstd(rankings[key]) for key in rankings}
         ordering = sorted(ordering, key=lambda x: x[1])
         ranks = [(key[0], i + 1) for i, key in enumerate(ordering)]
-                
-    return ranks
+    
+    return ranks, std
         
     
 
@@ -269,6 +273,8 @@ def figures(path, features, aggs):
 if __name__=='__main__':
     ran = rank()
     ic(ran)
+
+    
 
 #----------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------------------------#

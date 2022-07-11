@@ -604,3 +604,6 @@ def recreate_figure_3(beta=0.9, n=20, outdir='reports/figures/'):
 
     # save the figure
     fig.savefig('{}regret_beta_{}.png'.format(outdir, beta))
+
+
+

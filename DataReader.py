@@ -125,11 +125,13 @@ def prepare_data():
 
     RRS_all = vaex.open('data/processed/RRS_all.hdf5')
 
+    
     dates, values = RRS_all.new_dates.values.reshape(1,-1), RRS_all.ORDER_AMT.values.reshape(1,-1)
     to_delete = np.where(dates[0] < 0)
     dates, values = np.delete(dates[0], to_delete, axis=0).reshape(1,-1), np.delete(values[0], to_delete, axis=0).reshape(1,-1)
 
     data['RRS_all'] = ic(np.vstack((dates, values)))
+
 
     RRS_skus = dict()
     RRS_sku = vaex.open('data/processed/RRS_sku.hdf5')
@@ -157,6 +159,7 @@ def prepare_data():
 
     #----------------------------------------------------------------------------------------------------------------------#
 
+
     return data
 
 #----------------------------------------------------------------------------------------------------------------------#
@@ -164,5 +167,5 @@ def prepare_data():
 
 
 if __name__ == '__main__':
-    x = prepare_data()
+    x = correlate()
     ic(x)

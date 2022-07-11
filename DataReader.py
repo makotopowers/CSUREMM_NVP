@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 from numba import jit
+from regex import F
 
 class Data:
     def __init__(self, file_name, RR=False):
@@ -11,10 +12,11 @@ class Data:
         else:
             self.df = pd.read_csv(file_name)
 
+    
 
     def read_RR(self, feature=None, interval=24):
-        df1 = pd.read_csv("/Users/makotopowers/Desktop/CSUREMM/1.orders.csv", dtype={'distc_dest_org': 'object'})
-        df2 = pd.read_csv("/Users/makotopowers/Desktop/CSUREMM/2.SKU_details.csv")
+        df1 = pd.read_csv("/Users/dragonyuan/Desktop/CSUREMM/1.orders.csv", dtype={'distc_dest_org': 'object'})
+        df2 = pd.read_csv("/Users/dragonyuan/Desktop/CSUREMM/2.SKU_details.csv", dtype={'LOCATION1': 'object'})
         
         df1 = df1[['order_date', 'order_no']]
         df2 = df2[['ORDER_NO', 'RRS_MATE_CODE', 'ORDER_AMT']]
@@ -42,19 +44,22 @@ class Data:
             quantity = df[['datetimes', 'ORDER_AMT']]
             quantity = quantity.groupby(['datetimes']).sum() 
             q = q.to_numpy().fillna(0)
+            np.save("/Users/dragonyuan/Desktop/CSUREMM/data/raw/h24_all_data.npy",q)
             return q
 
         array = pd.pivot_table(df, index=feature, columns = 'datetimes', values='ORDER_AMT', aggfunc='sum',dropna=False).fillna(0)
         array = array.to_numpy()
+        print(array)
+        np.save("/Users/dragonyuan/Desktop/CSUREMM/data/raw/h24_by_sku.npy",array)
         return array
 
     def extract_feature(self, interval=1, feature=None):
         if self.RR:
             if feature:
-                return np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_by_sku.npy")
+                return np.load("/Users/dragonyuan/Desktop/CSUREMM/data/raw/h24_by_sku.npy")
 
             else:
-                return np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_all_data.npy")
+                return np.load("/Users/dragonyuan/Desktop/CSUREMM/data/raw/h24_all_data.npy")
             
 
 
@@ -106,7 +111,5 @@ class Data:
         most_data, indices = self.most_data(array)
         return most_data, indices
         
-
-
 
 

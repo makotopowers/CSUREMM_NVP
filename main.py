@@ -82,13 +82,7 @@ def all_predictions(ts, window, underage, overage, all=True):
     for i in range(start, len(intervals)):
         prediction = compare(intervals[i], underage, overage)
 
-
-        
-
         if window + i < len(ts):
-
-            
-
 
             loss = get_loss(prediction, ts[window + i])
             loss = np.reshape(loss, (1, len(loss)))
@@ -109,8 +103,6 @@ def cost_vs_window_size(ts, underage, overage):
         
         preds, losses, costs = all_predictions(ts, i, underage, overage, all=False)
         
-        
-        
         average_cost = np.nansum(costs, axis=0)/(365-i)      # 365 if RRS, 31 if JD
         average_cost = np.reshape(average_cost, (1, len(average_cost)))
 
@@ -128,13 +120,13 @@ def loss_vs_window_size(ts):
 
 def figures(JD=True):
     if JD:
-        dataframe = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
+        dataframe = DataReader.Data("/Users/dragonyuan/Desktop/CSUREMM/data/raw/JD_order_data.csv")
         data = dataframe.extract_feature(feature=None, interval=24)[0]
 
     else:
-        dataframe = DataReader.Data("/Users/makotopowers/Desktop/CSUREMM/data/raw/JD_order_data.csv")
+        dataframe = DataReader.Data("/Users/dragonyuan/Desktop/CSUREMM/data/raw/JD_order_data.csv")
         jd = ic(dataframe.extract_feature(feature=None, interval=24)[0])
-        data = np.load("/Users/makotopowers/Desktop/CSUREMM/data/raw/h24_all_data.npy").transpose(1,0)[0]
+        data = np.load("/Users/dragonyuan/Desktop/CSUREMM/data/raw/h24_all_data.npy").transpose(1,0)[0]
         ic(data)
     ic('Data loaded. ')
         
@@ -189,7 +181,6 @@ def figures(JD=True):
 
 
 if __name__=='__main__':
-    path = "/Users/makotopowers/Desktop/CSUREMM/reports/figures/RR_FIGS/different_quantiles"
+    path = "/Users/dragonyuan/Desktop/CSUREMM/reports/figures/RR_FIGS/different_quantiles"
     figures(JD=False)
-
 

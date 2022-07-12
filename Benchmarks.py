@@ -97,11 +97,16 @@ def oddp(array, underage, overage):
 #----------------------------------------------------------------------------------------------------------------------#
 
 def mwop(array, underage, overage):
+    # from "the Nonstationary Newsvendor: Data-Driven Nonparametric Learning"
+
     demand_level = np.array([np.mean(array[:i]) for i in range(1,len(array)+1)])
     demand_shock = array[1:] - demand_level[:-1]
 
     q = underage / (overage + underage) 
     return demand_level[-1] + sorted(demand_shock)[int(np.ceil(q*len(demand_shock)))-1]
+
+#----------------------------------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------------------------------------#
 
 ## This function returns a dictionary of the algorithms, with the key being the name of the algorithm 
 ## and the value being the algorithm itself.

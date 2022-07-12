@@ -98,6 +98,7 @@ def oddp(array, underage, overage):
 
 def mwop(array, underage, overage):
     # from "the Nonstationary Newsvendor: Data-Driven Nonparametric Learning"
+    # moving window ordering policy
 
     demand_level = np.array([np.mean(array[:i]) for i in range(1,len(array)+1)])
     demand_shock = array[1:] - demand_level[:-1]
@@ -119,7 +120,8 @@ def get_algos():
         "naive": naive,
         "holt": holt,
         "SAA": SAA,
-        "oddp": oddp
+        "oddp": oddp,
+        "mwop": mwop
     }
 
     return algos

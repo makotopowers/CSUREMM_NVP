@@ -56,11 +56,6 @@ def holt(array, underage, overage):
     return fcast1[0]
 
 
-def SAA(array, underage, overage):
-    q = underage / (overage + underage) 
-    return sorted(array)[int(np.ceil(q*len(array)))-1]
-
-
 def normsinv(array, underage, overage):
     q =  underage / (overage + underage)
 
@@ -72,6 +67,24 @@ def normsinv(array, underage, overage):
 def oddp(array, underage, overage):
     x = ODDP(c_u = underage, c_o = overage)
     return x.fit_and_predict(array)
+
+
+def SAA(intervals, trends, seasons, noises, underage, overage):
+    q = underage / (overage + underage) 
+    return sorted(intervals)[int(np.ceil(q*len(intervals)))-1]
+
+def SAA_on_trend(intervals, trends, seasons, noises, underage, overage):
+    pass
+
+def SAA_on_trend_and_seasonal(intervals, trends, seasons, noises, underage, overage):
+    pass
+
+def SAA_on_noise(intervals, trends, seasons, noises, underage, overage):
+    pass
+
+def SAA_on_noise_and_seasonal(intervals, trends, seasons, noises, underage, overage):
+    pass
+
 
 
 

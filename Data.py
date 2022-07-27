@@ -26,6 +26,10 @@ import numpy as np
 import vaex
 from icecream import ic
 import warnings
+from statsmodels.tsa.seasonal import seasonal_decompose
+import seaborn as sns
+import matplotlib.pyplot as plt
+from statistics import NormalDist
 warnings.filterwarnings("ignore")
 
 
@@ -247,7 +251,7 @@ def prepare_data(JD_number : int = 100, RRS_number : int = 100) -> dict[np.array
     return data
 
 
-def synthetic_data(length : int, samples : int) -> dict[np.ndarray]:
+def synthetic_data(length : int, samples : int, cu : int, co: int) -> list[dict[np.ndarray], dict[np.ndarray], list(), list()]:
     '''_summary_
 
     Parameters
@@ -288,9 +292,23 @@ def synthetic_data(length : int, samples : int) -> dict[np.ndarray]:
         r't2: $\mu=100+s^2$', 
         r't3: $\mu = 100$ if $s$ odd, 50 if $s$ even', 
         r't4: $\mu = 100 + s$ if $s$ odd, $50 + s$ if $s$ even', 
-        
     ]
-    return data, labels, titles
+
+
+    q = cu / (cu + co)
+    oracle1 = np.array([NormalDist(mu=100+s, sigma=np.sqrt(1+100+s)).inv_cdf(q) for s in range(length)])
+    oracle2 = np.array([NormalDist(mu=100 + s**2, sigma=np.sqrt(1+100+s**2)).inv_cdf(q) for s in range(length)])
+    oracle3 = np.array([NormalDist(mu=max(100*(s%2), 50),sigma=np.sqrt(1+max(100*(s%2), 50))).inv_cdf(q) for s in range(length)])
+    oracle4 = np.array([NormalDist(mu=max(100*(s%2), 50) + s, sigma=np.sqrt(1+max(100*(s%2), 50)+s)).inv_cdf(q) for s in range(length)])
+
+    oracle_preds = {
+        'oracle1': oracle1,
+        'oracle2': oracle2,
+        'oracle3': oracle3,
+        'oracle4': oracle4
+    }
+    
+    return data, oracle_preds, labels, titles
 
         
     
@@ -300,6 +318,45 @@ def synthetic_data(length : int, samples : int) -> dict[np.ndarray]:
 
 
 if __name__ == '__main__':
-    data = synthetic_data(100, 1)
-    ic(data)
+    data, labels, titles= synthetic_data(100, 1)
+    count=0
+    for key in data:
+        sns.set()
+        
+        x = seasonal_decompose(data[key], model='additive', two_sided=False, period=2)
+        data[key] = np.vstack((data[key], x.trend))
+        data[key] = np.vstack((data[key], x.seasonal))
+        data[key] = np.vstack((data[key], x.resid))
+
+        plt.subplots_adjust(bottom=0.5)
+        fig, ax = plt.subplots(4,1, figsize=(10,10))
+        
+        ax[0].plot(data[key][0], label='original')
+        ax[1].plot(data[key][1], label='trend')
+        ax[2].plot(data[key][2], label='seasonal')
+        ax[3].plot(data[key][3], label='residual')
+
+        ax[0].grid(True)
+        ax[1].grid(True)
+        ax[2].grid(True)
+        ax[3].grid(True)
+
+        ax[0].set_title(titles[0])
+        ax[1].set_title(titles[1])
+        ax[2].set_title(titles[2])
+        ax[3].set_title(titles[3])
+
+        ax[0].set_xlabel('time')
+        ax[1].set_xlabel('time')
+        ax[2].set_xlabel('time')
+        ax[3].set_xlabel('time')
+
+        ax[0].set_ylabel('value')
+        ax[1].set_ylabel('value')
+        ax[2].set_ylabel('value')
+        ax[3].set_ylabel('value')
+        
+        plt.savefig(f'reports/figures/sample_data/{labels[count]}.png')
+        plt.close()
+        count+=1
     

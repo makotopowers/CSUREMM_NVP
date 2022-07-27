@@ -46,13 +46,8 @@ def sparsity(x):
     return zs/len(x)
 
 def modify_SAA():
-    samples = 100
-    data, stream_types, titles = Data.synthetic_data(100, samples)
-    # ic(data.keys())
-
-    sparsity_scores = dict()
-    for key in data:
-        sparsity_scores[key] = sparsity(data[key])
+    samples = 1000
+    data, oracle_preds, stream_types, titles = Data.synthetic_data(50, samples)
 
     for key in data:
             
@@ -62,36 +57,29 @@ def modify_SAA():
         data[key] = np.vstack((data[key], x.resid))
 
 
-    
-
     combos = [[10,1], [2,1], [1,1], [1,2], [1,10]]
     for q in combos:
-        all_costs = {t: {} for t in stream_types }
+        all_costs = {t: {} for t in stream_types}
+        all_oracle_costs = {t: {} for t in stream_types}
         count = 0
         printProgressBar(0, len(stream_types)*samples, prefix = f'Progress on combo {q}:', suffix = 'Complete', length = 100)
         for key in data:
             
-            modifiers = {
-                'cpd': [data[key][1], data[key][0], data[key][2], 'cpd'], 
-                'norm': [data[key][1], data[key][0], data[key][2], None], 
-                'cpd-noise': [data[key][3], data[key][0], data[key][1] + data[key][2], 'cpd']
-            }
-            preds, costs = RunNewsvendor.all_predictions(data[key][0], Methods.get_SAA(), q[0],q[1], seasons=None,roll_window=False, compare=None)
+            
+            preds = RunNewsvendor.newsvendor_plays(data[key][0], data[key][1], data[key][2], data[key][3], Methods.get_SAA(), q[0],q[1])
+            costs = RunNewsvendor.newsvendor_costs(data[key][0], preds, q[0],q[1])
 
-            mod_preds = {}
-            mod_costs = {}
-            for modifier in modifiers:
-                mod_preds[f"pred_{modifier}"], mod_costs[f"costs_{modifier}"] = \
-                RunNewsvendor.all_predictions(modifiers[modifier][0], Methods.get_SAA(), q[0], q[1], actual=modifiers[modifier][1],seasons=modifiers[modifier][2], compare=modifiers[modifier][3])
+            oracle_costs = RunNewsvendor.newsvendor_costs(oracle_preds, q[0],q[1])
+            
 
-            algo='SAA'
-
-            for modifier in mod_costs:
+            for algo in costs:
                 d_stream_type = key[:2]
                 try:
-                    all_costs[d_stream_type][modifier].append((np.nanmean(mod_costs[modifier][algo]) - np.nanmean(costs[algo]))/np.nanmean(costs[algo]))
+                    all_costs[d_stream_type][algo]=np.vstack((all_costs[d_stream_type][algo], costs[algo]))
+                    all_oracle_costs[d_stream_type][algo]=np.vstack((all_oracle_costs[d_stream_type][algo], oracle_costs[algo]))
                 except KeyError:
-                    all_costs[d_stream_type][modifier] = [(np.nanmean(mod_costs[modifier][algo]) - np.nanmean(costs[algo]))/np.nanmean(costs[algo])]
+                    all_costs[d_stream_type][algo] = costs[algo]
+                    all_oracle_costs[d_stream_type][algo] = oracle_costs[algo]
             
             printProgressBar(count, len(stream_types)*samples, prefix = f'Progress on combo {q}:', suffix = 'Complete', length = 100)
             count+=1
@@ -165,7 +153,7 @@ def modify_SAA():
             plt.ylabel('Relative cost')
             plt.title(f"{titles[count]} with cu = {q[0]}, co = {q[1]}")
             plt.legend()
-            plt.savefig(f"reports/figures/synth_data_results/{d_stream}_{q}_iterations.png")
+            plt.savefig(f"reports/figures/synth_data_results_50/{d_stream}_{q}_iterations.png")
             plt.close()
             count += 1
 
